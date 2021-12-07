@@ -1,10 +1,10 @@
-bagon_8x8: 
-	db #88, #f8, #fe, #ff, #bb, #15, #4a, #04, #11, #f1, #f7, #ff, #bb, #15, #4a, #04
-carril_4x4:
-	db #5f, #40, #60, #50
-
 org #4000
 run main
+
+bagon_8x8: 
+	db #88, #f8, #fe, #ff, #bb, #15, #4a, #04, #11, #f1, #f7, #ff, #dd, #8a, #25, #02
+carril_4x4:
+	db #5f, #40, #60, #50
 
 main:
 ;; [ATTRIBUTOS]
