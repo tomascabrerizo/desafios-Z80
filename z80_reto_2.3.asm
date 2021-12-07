@@ -134,23 +134,29 @@ carril_loop:
 	dec b
 	jr nz, carril_loop ;; [FIN LOOP]
 
-get_input:
+init_animation:
 	ld hl, #c370 
-	ld de, bagon_8x8
+	ld de, bagon_8x8 
 	call render_sprite_8x8 ;; render initial bagon
+	ld hl, #c398
+	call render_clear_8x8 ;; clear last bagon
 
+get_input:
 	ld a, (start_key) ;; si z == 0 el carrito se movera, sino se acaba el programa
 	call #bb1e ;; KM_TEST_KEY
-	jp z, get_input	;; loop infinito hasta que presionemos start e inicia animacion
+	jr z, get_input	;; loop infinito hasta que presionemos start e inicia animacion
 
 	ld hl, #c370 ;; posicion de memoria de video donde dibujar sprite
 	call render_bagon_animation
+	ld hl, #c398
+	ld de, bagon_8x8 
+	call render_sprite_8x8 ;; render last bagon
 
-fin_animacion:
+fin_animation:
 	ld a, (reset_key) ;; si z == 0 el carrito se movera, sino se acaba el programa
 	call #bb1e ;; KM_TEST_KEY
-	jp nz, get_input ;; loop infinito hasta que presionemos reset
-	jp fin_animacion
+	jp nz, init_animation ;; loop infinito hasta que presionemos reset
+	jr fin_animation
 
 
 
