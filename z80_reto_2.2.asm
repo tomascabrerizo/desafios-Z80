@@ -5,6 +5,8 @@ bagon_8x8:
 	db #88, #f8, #fe, #ff, #bb, #15, #4a, #04, #11, #f1, #f7, #ff, #dd, #8a, #25, #02
 carril_4x4:
 	db #5f, #40, #60, #50
+start_key:
+	db #45
 
 ;; -------------------------------------------------------------
 ;; [FUNCION] render_sprite_8x8: dibuja sprite apuntado por DE donde apunta HL
@@ -106,7 +108,7 @@ carril_loop:
 	dec b
 	jr nz, carril_loop ;; [FIN LOOP]
 
-	ld a, 47 ;; si a == 1 el carrito se movera, sino se acaba el programa
+	ld a, (start_key) ;; si a == 1 el carrito se movera, sino se acaba el programa
 	call #bb1e ;; KM_TEST_KEY
 	jp z, continuar 
 
