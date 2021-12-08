@@ -17,9 +17,9 @@ render_sprite_8x8:
 	push bc ;; guardamos el valor antiguo de bc en el stack
 	push de ;; guardamos el valor antiguo de de en el stack
 	ld b, #2 ;; loop de 2 externo separa sprite en primera y segunda midad
-render_sprite_8x8_external_loop:
+	render_sprite_8x8_external_loop:
 	ld c, #8 ;; loop de 8 interno
-render_sprite_8x8_internal_loop:
+	render_sprite_8x8_internal_loop:
 	ld a, (de)
 	ld (hl), a
 	ld a, #08
@@ -48,9 +48,9 @@ render_sprite_8x8_internal_loop:
 render_clear_8x8:
 	push bc ;; guardamos el valor antiguo de bc en el stack
 	ld b, #2 ;; loop de 2 externo separa sprite en primera y segunda midad
-render_clear_8x8_external_loop:
+	render_clear_8x8_external_loop:
 	ld c, #8 ;; loop de 8 interno
-render_clear_8x8_internal_loop:
+	render_clear_8x8_internal_loop:
 	ld (hl), #00
 	ld a, #08
 	add a, h
@@ -73,8 +73,9 @@ render_clear_8x8_internal_loop:
 ;; [FUNCION] render_sprite_4x4: dibuja sprite apuntado por DE donde apunta HL
 ;; -------------------------------------------------------------
 render_sprite_4x4:
+	push de ;; guardamos el valor antiguo de de en el stack
 	ld c, #4
-render_sprite_4x4_loop:
+	render_sprite_4x4_loop:
 	ld a, (de)
 	ld (hl), a
 	ld a, #08
@@ -86,11 +87,7 @@ render_sprite_4x4_loop:
 	ld a, h
 	sub a, #20
 	ld h, a ;; reinicia hl a su posicion inicial
-	ld a, #04
-render_sprite_4x4_reset_de:
-	dec de
-	dec a
-	jp nz, render_sprite_4x4_reset_de
+	pop de ;; volvemos a setear de como estaba antes de llamar a la funcion
 	ret
 ;; [FIN FUNCION]
 
@@ -102,10 +99,10 @@ render_bagon_animation:
 	push hl ;; guardar estado de antigua hl
 	ld de, bagon_8x8 ;; sprite 8x8 que se va a dibujar
 	ld b, #14
-bagon_animation_loop:
+	bagon_animation_loop:
 	call render_sprite_8x8
 	ld c, #18
-wait_loop: ;; retraso de (0,0033 * 32) segundos
+	wait_loop: ;; retraso de (0,0033 * 24) segundos
 	halt
 	dec c
 	jr nz, wait_loop
@@ -127,21 +124,21 @@ main:
 	ld de, carril_4x4 ; sprite 4x4 que se va a dibujar
 ;; [LOOP] loop que cubre el ancho de la pantalla con vias
 	ld b, #50
-carril_loop:
+	carril_loop:
 	call render_sprite_4x4
 	ld de, carril_4x4
 	inc hl
 	dec b
 	jr nz, carril_loop ;; [FIN LOOP]
 
-init_animation:
+	init_animation:
 	ld hl, #c370 
 	ld de, bagon_8x8 
 	call render_sprite_8x8 ;; render initial bagon
 	ld hl, #c398
 	call render_clear_8x8 ;; clear last bagon
 
-get_input:
+	get_input:
 	ld a, (start_key) ;; si z == 0 el carrito se movera, sino se acaba el programa
 	call #bb1e ;; KM_TEST_KEY
 	jr z, get_input	;; loop infinito hasta que presionemos start e inicia animacion
@@ -152,16 +149,8 @@ get_input:
 	ld de, bagon_8x8 
 	call render_sprite_8x8 ;; render last bagon
 
-fin_animation:
+	fin_animation:
 	ld a, (reset_key) ;; si z == 0 el carrito se movera, sino se acaba el programa
 	call #bb1e ;; KM_TEST_KEY
 	jp nz, init_animation ;; loop infinito hasta que presionemos reset
 	jr fin_animation
-
-
-
-
-
-
-
-
