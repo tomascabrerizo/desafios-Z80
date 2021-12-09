@@ -231,7 +231,7 @@ move_player:
 	add a, b ;; calculamos la nueva posicion y la guardamos en a
 	sub a, #6f
 	jr z, end_move_player ;; si la nueva posicion esta fuera de la pantalla terminamos la funcion
-	ld a, #09
+	ld a, #06
 	player_speed_loop:
 		halt
 		dec a
@@ -274,6 +274,7 @@ main:
 		call render_sprite_8x8 ;; render barril 2
 		
 		update_game
+			;; collition test
 			ld hl, (barril1_p);; test posision con barril 1
 			ld a, l
 			ld hl, (player_p)
@@ -282,6 +283,18 @@ main:
 			ld hl, (barril2_p);; test posision con barril 1
 			ld a, l
 			ld hl, (player_p)
+			sub a, l
+			jp z, end_game
+			ld hl, (barril1_p);; test (posision + 1) con barril 1
+			ld a, l
+			ld hl, (player_p)
+			inc l ;; get (position + 1)
+			sub a, l
+			jp z, end_game
+			ld hl, (barril2_p);; test (posision + 1) con barril 1
+			ld a, l
+			ld hl, (player_p)
+			inc l ;; get (position + 1)
 			sub a, l
 			jp z, end_game
 		get_input:
@@ -293,14 +306,15 @@ main:
 		jr nz, move_left ;; pulsamos o
 		jp get_input ;; si no pulsamos nada volvemos a chequear
 		move_right:
-			ld b, #02
+			ld b, #01
 			call move_player
 			jp update_game
 		move_left:
-			ld b, #fe
+			ld b, #ff
 			call move_player
 			jp update_game
 		end_game:
+			ld hl, (player_p)
 			call render_expotion_animation
 		reset_loop:
 			ld hl, #c388
