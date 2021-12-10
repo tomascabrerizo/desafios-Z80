@@ -38,6 +38,7 @@ barril_4_p : dw #047f ;; H guarda las vidas y L la posicion
 door_p  : db #be
 key_p   : db #74
 have_key: db #00
+win_game: db #00
 
 ;; -------------------------------------------------------------
 ;; [FUNCION] delay_loop: retarda el juegos con el valor guardado en el registro A
@@ -359,7 +360,7 @@ try_to_open_door:
 	door_collision:
 		ld a, (have_key)
 		dec a
-		jp z, free_return_stk_and_reset_game ;; you win the game, reset	
+		jp z, set_win_game ;; you win the game, reset	
 		ld a, #1
 		dec a
 		jr end_try_to_open_door	
@@ -369,9 +370,9 @@ try_to_open_door:
 		inc a
 		jr end_try_to_open_door
 	
-	free_return_stk_and_reset_game: 
-		pop af;; get reset directly the game so we pop the las function call in the stak to not leak memory
-		jp game_init
+	set_win_game: 
+		ld a, #01
+		ld (win_game), a
 
 	end_try_to_open_door:
 	ret
@@ -580,6 +581,8 @@ setup_positions:
 	;; set have key to 0
 	ld a, #0
 	ld (have_key), a
+	;; set win game to 0
+	ld (win_game), a
 	ret
 ;; [FIN FUNCIO]
 
@@ -632,4 +635,8 @@ main:
 			call game_player_attack
 			jp continue
 		continue:
+		;; chequeamos si ganamos el juego
+		ld a, (win_game)
+		dec a
+		jp z, game_init
 	jp game_loop
