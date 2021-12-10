@@ -31,9 +31,13 @@ player_p    : dw #c388
 player_atk_d: db #01 ;; 1 = right, -1 = left 
 
 barril_1_p : dw #04b8 ;; H guarda las vidas y L la posicion
-barril_2_p : dw #0478 ;; H guarda las vidas y L la posicion
-barril_3_p : dw #04bf ;; H guarda las vidas y L la posicion
+barril_2_p : dw #0472 ;; H guarda las vidas y L la posicion
+barril_3_p : dw #04af ;; H guarda las vidas y L la posicion
 barril_4_p : dw #047f ;; H guarda las vidas y L la posicion
+
+door_p  : db #be
+key_p   : db #74
+have_key: db #00
 
 ;; -------------------------------------------------------------
 ;; [FUNCION] delay_loop: retarda el juegos con el valor guardado en el registro A
@@ -81,7 +85,7 @@ render_sprite_8x8:
 ;; -------------------------------------------------------------
 render_sprite_8x4:
 	push bc ;; guardamos el valor antiguo de bc en el stack
-	push de ;; guardamos el valor antiguo de de en el stack
+	push de ;; guardamos el valor antiguo de de en el stack	
 	ld b, #8 ;; loop de 8 interno
 	render_sprite_8x4_loop:
 		ld a, (de)
@@ -92,6 +96,8 @@ render_sprite_8x4:
 		inc de
 		dec b
 	jr nz, render_sprite_8x4_loop ;; fin loop interno
+	sub a, #40
+	ld h, a ;; reset h
 	pop de ;; volvemos a setear de como estaba antes de llamar a la funcion
 	pop bc ;; volvemos a setear bc como estaba antes de llamar a la funcion
 	ret
@@ -246,28 +252,32 @@ game_render_enemy:
 		jr nz, enemy_3
 		ld de, barril_4_8x4
 		call render_sprite_8x4
+		jp end_render_enemy
 	enemy_3:
 		ld a, b
 		sub a, #3
 		jr nz, enemy_2
 		ld de, barril_3_8x4
 		call render_sprite_8x4
+		jp end_render_enemy
 	enemy_2:
 		ld a, b
 		sub a, #2
 		jr nz, enemy_1
 		ld de, barril_2_8x4
 		call render_sprite_8x4
+		jp end_render_enemy
 	enemy_1:
 		ld a, b
 		sub a, #1
 		jr nz, enemy_5
 		ld de, barril_1_8x4
 		call render_sprite_8x4
+		jp end_render_enemy
 	enemy_5:
 		ld de, barril_5_8x4
 		call render_sprite_8x4
-
+	end_render_enemy:
 	pop hl ;; get the position and life in hl
 	ret
 ;; [FIN FUNCION]
@@ -335,6 +345,37 @@ is_position_free:
 	ret
 ;; [FIN FUNCION]
 
+;; -------------------------------------------------------------
+;; [FUNCION]: try_to_open_door
+;; [input]  : registro A con posicion a testear 
+;; [modifies]: registro B
+;; -------------------------------------------------------------
+try_to_open_door:
+	ld b, a
+	ld a, (door_p)
+	sub a, b
+	jr nz, no_door_collision
+
+	door_collision:
+		ld a, (have_key)
+		dec a
+		jp z, free_return_stk_and_reset_game ;; you win the game, reset	
+		ld a, #1
+		dec a
+		jr end_try_to_open_door	
+	
+	no_door_collision:
+		ld a, #0
+		inc a
+		jr end_try_to_open_door
+	
+	free_return_stk_and_reset_game: 
+		pop af;; get reset directly the game so we pop the las function call in the stak to not leak memory
+		jp game_init
+
+	end_try_to_open_door:
+	ret
+;; [FIN FUNCION]
 
 ;; -------------------------------------------------------------
 ;; [FUNCION]    : game_move_player_r
@@ -348,12 +389,19 @@ game_move_player_r:
 	call is_position_free
 	jr z, end_move_right
 
+	ld hl, (player_p)
+	ld a, l
+	inc a ;; get player next position
+	call try_to_open_door ; si se habre la puerta el juego se reseteea
+	jr z, end_move_right
+
 	ld a, #0c
 	call delay
 	call render_clear_8x4 ;; borrar posicion del jugador anterior
 	inc hl
 	ld (player_p), hl
 	call game_render_player_r ;; render player en su nueva posicion
+	call try_to_get_key
 	end_move_right:
 		ld a, #01
 		ld (player_atk_d), a ;; set la direccion de ataque a right
@@ -371,6 +419,12 @@ game_move_player_l:
 	dec a ;; get player next position
 	call is_position_free
 	jr z, end_move_left
+	
+	ld hl, (player_p)
+	ld a, l
+	dec a ;; get player next position
+	call try_to_open_door ; si se habre la puerta el juego se reseteea
+	jr z, end_move_left
 
 	ld a, #0c
 	call delay
@@ -379,6 +433,7 @@ game_move_player_l:
 	dec hl
 	ld (player_p), hl
 	call game_render_player_l ;; render player en su nueva posicion
+	call try_to_get_key
 	end_move_left:
 		ld a, #ff
 		ld (player_atk_d), a ;; set la direccion de ataque a left
@@ -485,24 +540,55 @@ game_player_attack:
 ;; [FIN FUNCION]
 
 ;; -------------------------------------------------------------
+;; [FUNCION]    : try_to_get_key
+;; [description]: 
+;; --------------------------------------------------------------
+try_to_get_key:
+	ld hl, (player_p)
+	ld a, (key_p)
+	sub a, l
+	jr nz, end_try_get_key
+	ld a, 1
+po	ld (have_key), a
+	end_try_get_key:
+	ret
+;; [FIN FUNCION]
+
+;; -------------------------------------------------------------
 ;; [FUNCION] setup_positions
 ;; [desc]    : configura posisciones iniciales del juego    
 ;; [modifies]: register HL
 ;; -------------------------------------------------------------
 setup_positions:
+	;; clear last player pos
+	ld hl, (player_p)
+	call render_clear_8x8
+	;; set the player position
 	ld hl, #c388
 	ld (player_p), hl
 	ld a, #01
 	ld (player_atk_d), a
+	;; set the enemies position and lifes
+	ld hl, #04b8
+	ld (barril_1_p), hl
+	ld hl, #0472
+	ld (barril_2_p), hl
+	ld hl, #04af
+	ld (barril_3_p), hl
+	ld hl, #047f
+	ld (barril_4_p), hl
+	;; set have key to 0
+	ld a, #0
+	ld (have_key), a
 	ret
 ;; [FIN FUNCIO]
 
 main:
 	game_init: ;; inicializamos el estado inicial del juego
 		call setup_positions
-		call game_render_floor
-		call game_render_player_r
-		ld hl, (barril_1_p)
+		call game_render_floor ;; render_floor
+		call game_render_player_r ;; render_player
+		ld hl, (barril_1_p) ;; render enemies
 		call game_render_enemy
 		ld hl, (barril_2_p)
 		call game_render_enemy
@@ -510,6 +596,16 @@ main:
 		call game_render_enemy
 		ld hl, (barril_4_p)
 		call game_render_enemy
+		
+		ld hl, (player_p)
+		ld a, (key_p)
+		ld l, a
+		ld de, key_8x4
+		call render_sprite_8x4
+		ld a, (door_p)
+		ld l, a
+		ld de, door_8x4
+		call render_sprite_8x4
 	
 	game_loop: ;; loop donde se calcula el juego
 		get_input:
@@ -522,6 +618,9 @@ main:
 			ld a, (start_key)
 			call #bb1e ;; KM_TEST_KEY
 		jr nz, attack ;; pulsamos o
+			ld a, (reset_key)
+			call #bb1e ;; KM_TEST_KEY
+		jr nz, game_init ;; pulsamos reset_reiniciamos el juego
 		jp continue ;; si no pulsamos nada saltamos el input
 		move_right:
 			call game_move_player_r
@@ -534,33 +633,3 @@ main:
 			jp continue
 		continue:
 	jp game_loop
-
-	game_end:
-		ld a, (reset_key) ;; si z == 0 el carrito se movera, sino se acaba el programa
-		call #bb1e ;; KM_TEST_KEY
-		jp nz, game_init ;; loop infinito hasta que presionemos reset
-	jr game_end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
